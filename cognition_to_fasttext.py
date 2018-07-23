@@ -9,6 +9,7 @@ def run(args):
 
     check_output_dir()
     output_filename = str(args.name).lower().replace(" ", "_")
+    full_output_filename = os.path.join("results", output_filename + ".full.ft")
     training_output_filename = os.path.join("results", output_filename + ".train.ft")
     test_output_filename = os.path.join("results", output_filename + ".test.ft")
 
@@ -33,17 +34,31 @@ def run(args):
     if len(test_set) == 0:
         raise Exception("Test set is empty")
 
-    log.info("Writing training data to {}".format(training_output_filename))
-    with open(training_output_filename, 'w+') as out:
+    log.info("Writing full data to {}".format(full_output_filename))
+    with open(full_output_filename, "w+") as out_full:
 
-        for index, row in training_set.iterrows():
-            out.write(concat_label_and_text(row['label'], preprocess_text(row['text']), args.label)+'\n')
 
-    log.info("Writing test data to {}".format(test_output_filename))
-    with open(test_output_filename, 'w+') as out:
+        log.info("Writing training data to {}".format(training_output_filename))
+        with open(training_output_filename, 'w+') as out:
 
-        for index, row in test_set.iterrows():
-            out.write(concat_label_and_text(row['label'], preprocess_text(row['text']), args.label)+'\n')
+            for index, row in training_set.iterrows():
+                try:
+                    out.write(concat_label_and_text(row['label'], preprocess_text(row['text']), args.label)+'\n')
+                    out_full.write(concat_label_and_text(row['label'], preprocess_text(row['text']), args.label) + '\n')
+                except:
+                    log.warn("Encountered an invalid row, skipping.")
+                    pass
+
+        log.info("Writing test data to {}".format(test_output_filename))
+        with open(test_output_filename, 'w+') as out:
+
+            for index, row in test_set.iterrows():
+                try:
+                    out.write(concat_label_and_text(row['label'], preprocess_text(row['text']), args.label)+'\n')
+                    out_full.write(concat_label_and_text(row['label'], preprocess_text(row['text']), args.label) + '\n')
+                except:
+                    log.warn("Encountered an invalid row, skipping.")
+                    pass
 
     log.info("Success")
 
@@ -55,14 +70,15 @@ def check_output_dir():
 
 def concat_label_and_text(label, text, pos_label):
 
-    if label == "yes":
+    if label in ["yes",1,"true", "1", True, pos_label]:
         return "{} {}".format("__label__{}".format(pos_label), text)
 
-    elif label == "no":
+    elif label in ["no", 0, "false", "0", False]:
         return "{} {}".format("__label__no", text)
 
     else:
-        raise Exception("Invalid label: {}. Labels must be either 'yes' or 'no'.")
+        err = "Invalid label: {} <{}>. Labels must be either 'yes/1/{}' or 'no/0'.".format(label,type(label), pos_label)
+        raise Exception(err)
 
 def preprocess_text(text):
 
